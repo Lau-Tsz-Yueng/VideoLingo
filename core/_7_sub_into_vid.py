@@ -12,8 +12,9 @@ TRANS_FONT_NAME = 'Arial'
 
 # Linux need to install google noto fonts: apt-get install fonts-noto
 if platform.system() == 'Linux':
-    FONT_NAME = 'NotoSansCJK-Regular'
-    TRANS_FONT_NAME = 'NotoSansCJK-Regular'
+    # Use the actual family name shipped by fonts-noto-cjk (covers Simplified Chinese)
+    FONT_NAME = 'Noto Sans CJK SC'
+    TRANS_FONT_NAME = 'Noto Sans CJK SC'
 # Mac OS has different font names
 elif platform.system() == 'Darwin':
     FONT_NAME = 'Arial Unicode MS'
