@@ -160,3 +160,7 @@ This project is licensed under the Apache 2.0 License. Special thanks to the fol
 ---
 
 <p align="center">If you find VideoLingo helpful, please give me a ⭐️!</p>
+
+
+python cli_run.py --video_path batch/input/hls_video_from_s3/video.m3u8 --source_lang en --target_lang zh --hls_output --hls_segment 6 --job_id smoke-dev-001 --output_s3_prefix s3://cw-dev-hls-output-bucket/videolingo/dev-smoke/smoke-dev-001
+

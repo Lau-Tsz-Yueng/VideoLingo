@@ -1,5 +1,6 @@
 import argparse
 import json
+import os
 import shutil
 import subprocess
 import uuid
@@ -7,10 +8,17 @@ from pathlib import Path
 from typing import Optional
 from urllib.parse import urlparse
 
+from dotenv import load_dotenv
+
 from batch.utils.video_processor import process_video
 from core.utils.config_utils import load_key, update_key
 from core.utils.onekeycleanup import sanitize_filename
 
+
+PROJECT_ROOT = Path(__file__).resolve().parent
+ENV_FILE = PROJECT_ROOT / ".env"
+if ENV_FILE.exists():
+    load_dotenv(ENV_FILE)
 
 INPUT_DIR = Path("batch/input")
 OUTPUT_HISTORY_DIR = Path("batch/output")
@@ -28,6 +36,51 @@ def _make_job_id(video_path: str, provided: Optional[str]) -> str:
 def _ensure_dirs():
     INPUT_DIR.mkdir(parents=True, exist_ok=True)
     OUTPUT_HISTORY_DIR.mkdir(parents=True, exist_ok=True)
+
+
+def _font_available(family: str) -> bool:
+    if not shutil.which("fc-list"):
+        return False
+    proc = subprocess.run(
+        ["fc-list", family],
+        stdout=subprocess.PIPE,
+        stderr=subprocess.DEVNULL,
+        text=True,
+    )
+    return bool(proc.stdout.strip())
+
+
+def _ensure_cjk_font():
+    family = "Noto Sans CJK SC"
+    if _font_available(family):
+        return
+
+    print(f"🔤 Font '{family}' not found; attempting to install fonts-noto-cjk...")
+    if os.geteuid() != 0 or not shutil.which("apt-get"):
+        print(
+            f"⚠️ Missing '{family}' and cannot auto-install. "
+            "Please run 'sudo apt-get update && sudo apt-get install -y fonts-noto-cjk'."
+        )
+        return
+
+    env = os.environ.copy()
+    env.setdefault("DEBIAN_FRONTEND", "noninteractive")
+    try:
+        subprocess.run(["apt-get", "update"], check=True, env=env)
+        subprocess.run(
+            ["apt-get", "install", "-y", "fonts-noto-cjk"],
+            check=True,
+            env=env,
+        )
+        subprocess.run(["fc-cache", "-fv"], check=False)
+    except subprocess.CalledProcessError as exc:
+        print(f"⚠️ Failed to install fonts-noto-cjk: {exc}")
+        return
+
+    if _font_available(family):
+        print(f"✅ Font '{family}' installed.")
+    else:
+        print(f"⚠️ Font '{family}' still missing after installation attempt.")
 
 
 def _run_ffmpeg(args):
@@ -59,7 +112,9 @@ def _materialize_local_copy(src: Path, dest: Path, convert_ts: bool = False):
 def _prepare_input(video_path: str, job_id: str) -> tuple[str, Optional[str]]:
     path = Path(video_path)
     if video_path.startswith("http"):
-        if video_path.lower().endswith(".m3u8"):
+        parsed = urlparse(video_path)
+        is_hls = (parsed.path or "").lower().endswith(".m3u8")
+        if is_hls:
             dest = INPUT_DIR / f"{job_id}.mp4"
             cmd = [
                 "ffmpeg",
@@ -271,6 +326,7 @@ def main():
     args = parser.parse_args()
 
     _ensure_dirs()
+    _ensure_cjk_font()
 
     job_id = _make_job_id(args.video_path, args.job_id)
     original_source, original_target = _update_languages(args.source_lang, args.target_lang)
