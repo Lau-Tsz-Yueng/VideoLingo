@@ -31,7 +31,7 @@ from dotenv import load_dotenv
 PROJECT_ROOT = Path(__file__).resolve().parent
 ENV_FILE = PROJECT_ROOT / ".env"
 if ENV_FILE.exists():
-    load_dotenv(ENV_FILE)
+    load_dotenv(ENV_FILE, override=True)
 
 log = logging.getLogger("videolingo.s3_poller")
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
